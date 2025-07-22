@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <!-- 在现有的<head>标签内添加这些行 -->
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#1f77b4">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="翻译器">
+
+
+    <!-- 添加移动端适配样式 -->
+    <style>
+        @media (max-width: 768px) {
+            .language-selection-bar {
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px 10px;
+            }
+            
+            .lang-select {
+                width: 100% !important;
+                min-width: unset !important;
+                font-size: 16px;
+                padding: 12px;
+                border-radius: 8px;
+            }
+            
+            .swap-button {
+                align-self: center;
+                transform: rotate(90deg);
+                margin: 5px 0;
+                padding: 10px;
+                width: 40px;
+                height: 40px;
+            }
+            
+            /* 确保下拉选项在移动端可读 */
+            .lang-select option {
+                font-size: 16px;
+                padding: 8px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .lang-select {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 在<body>标签开始后立即添加 -->
+    <!-- PWA安装提示横幅 -->
+    <div id="installBanner" class="install-banner" style="display: none;">
+        <div class="install-content">
+            <span>📱 将翻译器安装到桌面，获得更好的体验！</span>
+            <button id="installBtn" class="install-btn">安装应用</button>
+            <button id="dismissBtn" class="dismiss-btn">×</button>
+        </div>
+    </div>
+
+    <!-- 你的原有内容继续... -->     
+    <div class="header">
+        <h1>Translator</h1>
+    </div>
+    <div class="coffee-section">
+        <button id="coffee-btn" class="coffee-button" title="请作者喝咖啡">
+            <i class="fas fa-coffee"></i> 请作者喝咖啡
+        </button>
+    </div>
+
+    <div class="main-wrapper">
+        <!-- 总体的配置栏 -->
+        <details class="master-config-details">
+            <summary>所有配置 </summary>
+            <div class="master-config-content">
+                <details class="api-config-details">
+                    <summary>API 配置 </summary>
+                    <div class="api-config-content">
+                        <div class="form-group">
+                            <label for="api_platform">API 平台:</label>
+                            <select id="api_platform">
+                                <option value="custom">自定义 (Custom)</option>
+                                <option value="siliconflow" selected>SiliconFlow</option>
+                                <option value="zhipu">智谱</option>                                
+                                <option value="modelscope">Modelscope</option>
+                                <option value="openrouter">Openrouter</option>
+                                <option value="openai">OpenAI</option>
+                                <option value="ollama">Ollama</option>
+                                <option value="volcengine">火山引擎 (兼容模式)</option>
+                                <option value="volcengine_sdk">火山引擎 (SDK)</option>
+                            </select>
+                        </div>
+
+                        <!-- 标准API字段 -->
+                        <div id="standard_api_fields">
+                            <div class="form-group">
+                                <label for="base_url">API Base URL:</label>
+                                <input type="text" id="base_url" placeholder="例如: https://api.siliconflow.cn/v1">
+                                <p class="hint">留空将使用 .env 默认值或平台预设。</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="api_key">API 密钥 (API Key):</label>
+                                <input type="password" id="api_key" placeholder="例如: sk-xxxx">
+                                <p class="hint">留空将使用 .env 环境变量 (例如 SILICONFLOW_API_KEY)。</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="model">模型 (Model):</label>
+                                <input type="text" id="model" placeholder="例如: Qwen/Qwen2-7B-Instruct">
+                                <p class="hint">留空将使用 .env 默认值或平台预设。</p>
+                            </div>
+                        </div>
+
+                        <!-- 火山引擎SDK字段 -->
+                        <div id="volcengine_sdk_credentials" style="display: none;">
+                            <div class="form-group">
+                                <label for="volc_ak">火山引擎 Access Key:</label>
+                                <input type="text" id="volc_ak" name="volc_ak" placeholder="输入您的 Access Key ID">
+                                <p class="hint">留空将使用服务器端的 .env 环境变量 (VOLCENGINE_AK)。</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="volc_sk">火山引擎 Secret Key:</label>
+                                <input type="password" id="volc_sk" name="volc_sk" placeholder="输入您的 Secret Access Key">
+                                <p class="hint">留空将使用服务器端的 .env 环境变量 (VOLCENGINE_SK)。</p>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="prompt-config-details">
+                    <summary>Prompt 设置 </summary>
+                    <div class="prompt-config-content">
+                        <div class="form-group">
+                            <label>翻译模式:</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="translation_mode" value="none" checked>
+                                    <span>无 Prompt</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="translation_mode" value="general">
+                                    <span>通用翻译</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="translation_mode" value="professional">
+                                    <span>专业翻译</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="translation_mode" value="custom">
+                                    <span>自定义Prompt</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="professional_domain_group" style="display: none;">
+                            <label for="professional_domain">专业领域:</label>
+                            <select id="professional_domain">
+                                <!-- 通用领域 -->
+                                <option value="academic">学术文献</option>
+                                <option value="business">商务文档</option>
+                                <option value="technical">技术文档</option>
+                                <option value="legal">法律文件</option>
+                                <option value="medical">医疗文档</option>
+                                <option value="creative">创意写作</option>
+                                <!-- PPT专业领域 -->
+                                <optgroup label="演示文稿 (PPT)" id="ppt_domains" style="display: none;">
+                                    <option value="sales">销售演示</option>
+                                    <option value="education">教育培训</option>
+                                </optgroup>
+                                <!-- Excel专业领域 -->
+                                <optgroup label="电子表格 (Excel)" id="excel_domains" style="display: none;">
+                                    <option value="financial">财务报表</option>
+                                    <option value="data_analysis">数据分析</option>
+                                    <option value="inventory">库存管理</option>
+                                    <option value="project">项目管理</option>
+                                    <option value="hr">人力资源</option>
+                                </optgroup>
+                            </select>
+                            <p class="hint">选择文档所属的专业领域，系统将使用相应的专业术语和风格。</p>
+                        </div>
+
+                        <div class="form-group" id="custom_prompt_group" style="display: none;">
+                            <label for="custom_system_prompt">系统提示词 (System Prompt):</label>
+                            <textarea id="custom_system_prompt" rows="4" placeholder="例如: You are a professional translator specializing in medical documents..."></textarea>
+                            <p class="hint">定义翻译器的角色和基本规则。使用 {target_lang} 作为目标语言占位符。</p>
+                            
+                            <label for="custom_user_prompt">用户提示词模板 (User Prompt):</label>
+                            <textarea id="custom_user_prompt" rows="2" placeholder="Please translate the following content to {target_lang}:
+
+{content}"></textarea>
+                            <p class="hint">定义如何向翻译器提交内容。{content} 将被替换为实际内容。</p>
+                        </div>
+
+                        <div class="form-group" id="preserve_terms_group">
+                            <label for="preserve_terms">保留术语 (不翻译):</label>
+                            <input type="text" id="preserve_terms" placeholder="例如: API, SDK, HTTP (用逗号分隔)">
+                            <p class="hint">这些术语将在翻译中保持原样不变。</p>
+                        </div>
+
+                        <div class="form-group" id="glossary_group">
+                            <label>术语表 (指定翻译):</label>
+                            <div id="glossary_container">
+                                <div class="glossary-item">
+                                    <input type="text" class="glossary-source" placeholder="原文术语">
+                                    <span>→</span>
+                                    <input type="text" class="glossary-target" placeholder="目标翻译">
+                                    <button type="button" class="remove-glossary-btn" title="删除">×</button>
+                                </div>
+                            </div>
+                            <button type="button" id="add_glossary_btn" class="small-button">
+                                <i class="fas fa-plus"></i> 添加术语
+                            </button>
+                            <p class="hint">指定特定术语的翻译方式。</p>
+                        </div>
+
+                        <div class="form-group" id="additional_context_group">
+                            <label for="additional_context">额外上下文说明:</label>
+                            <textarea id="additional_context" rows="2" placeholder="例如: 这是一份面向投资者的季度财报"></textarea>
+                            <p class="hint">提供额外的背景信息以帮助获得更准确的翻译。</p>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="advanced-config-details">
+                    <summary>高级设置 </summary>
+                    <div class="advanced-config-content">
+                        <div class="form-group">
+                            <label>批处理设置 (仅对支持的处理方法有效):</label>
+                            <div class="batch-settings">
+                                <div class="batch-setting-item">
+                                    <label for="max_units_per_chunk">每批最大单元数:</label>
+                                    <input type="number" id="max_units_per_chunk" value="" min="10" max="200">
+                                </div>
+                                <div class="batch-setting-item">
+                                    <label for="max_chars_per_chunk">每批最大字符数:</label>
+                                    <input type="number" id="max_chars_per_chunk" value="" min="5000" max="100000">
+                                </div>
+                            </div>
+                            <p class="hint">调整批处理大小以优化翻译速度。较大的值可能会提高速度但可能影响质量。</p>
+                        </div>
+
+                        <!-- PPT特有配置 -->
+                        <div class="form-group" id="ppt_config_group" style="display: none;">
+                            <label>PPT 特有设置:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="translate_notes" checked>
+                                    <span>翻译备注页</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="translate_slide_titles" checked>
+                                    <span>翻译幻灯片标题</span>
+                                </label>
+                            </div>
+                            <p class="hint">选择是否翻译PPT中的备注页和幻灯片标题。</p>
+                        </div>
+
+                        <!-- Excel特有配置 -->
+                        <div class="form-group" id="excel_config_group" style="display: none;">
+                            <label>Excel 特有设置:</label>
+                            <div class="excel-settings">
+                                <div class="checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="translate_headers" checked>
+                                        <span>翻译表头</span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="translate_comments" checked>
+                                        <span>翻译批注</span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="translate_charts" checked>
+                                        <span>翻译图表元素</span>
+                                    </label>
+                                </div>
+                                <div class="checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="skip_formulas" checked>
+                                        <span>跳过公式单元格</span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="skip_numbers" checked>
+                                        <span>跳过纯数字</span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="skip_dates" checked>
+                                        <span>跳过日期</span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="smart_detection" checked>
+                                        <span>智能内容检测</span>
+                                    </label>
+                                </div>
+                                <div class="excel-advanced-settings">
+                                    <div class="setting-item">
+                                        <label for="max_text_length">最大文本长度:</label>
+                                        <input type="number" id="max_text_length" value="200" min="50" max="1000">
+                                    </div>
+                                    <div class="setting-item">
+                                        <label for="header_detection_rows">表头检测行数:</label>
+                                        <input type="number" id="header_detection_rows" value="5" min="1" max="20">
+                                    </div>
+                                    <div class="setting-item">
+                                        <label for="min_alpha_ratio">最小字母比例:</label>
+                                        <input type="number" id="min_alpha_ratio" value="0.3" min="0.1" max="1.0" step="0.1">
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <label for="selected_sheets">选择工作表 (留空表示全部):</label>
+                                    <input type="text" id="selected_sheets" placeholder="例如: Sheet1, Summary, 数据表 (用逗号分隔)">
+                                </div>
+                            </div>
+                            <p class="hint">Excel智能检测可以自动识别哪些内容需要翻译，避免翻译数字、公式等数据。</p>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="config-management-details">
+                    <summary>配置管理 </summary>
+                    <div class="config-management-content">
+                        <div class="form-group">
+                            <label>保存的配置:</label>
+                            <div class="config-controls">
+                                <select id="saved_configs">
+                                    <option value="">选择配置...</option>
+                                </select>
+                                <button type="button" id="load_config_btn" class="small-button">
+                                    <i class="fas fa-download"></i> 加载
+                                </button>
+                                <button type="button" id="save_config_btn" class="small-button">
+                                    <i class="fas fa-save"></i> 保存当前
+                                </button>
+                                <button type="button" id="delete_config_btn" class="small-button danger">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </div>
+                            <p class="hint">保存您的翻译配置以便下次使用。</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>导入/导出配置:</label>
+                            <div class="config-controls">
+                                <button type="button" id="export_config_btn" class="small-button">
+                                    <i class="fas fa-file-export"></i> 导出配置
+                                </button>
+                                <label for="import_config_file" class="small-button">
+                                    <i class="fas fa-file-import"></i> 导入配置
+                                    <input type="file" id="import_config_file" accept=".json" hidden>
+                                </label>
+                            </div>
+                            <p class="hint">导出配置为JSON文件或从文件导入配置。</p>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </details>
+
+        <div id="language_selection_bar" class="language-selection-bar">
+            <select id="source_lang" class="lang-select"></select>
+            <button id="swap_lang_button" class="swap-button" title="互换源语言与目标语言">
+                <i class="fas fa-exchange-alt"></i>
+            </button>
+            <select id="target_lang" class="lang-select" required></select>
+        </div>
+
+        <div class="translation-container">
+            <div class="input-panel">
+                <div class="mode-toggle-buttons">
+                    <button id="mode_text_button" class="mode-button active">文字</button>
+                    <button id="mode_file_button" class="mode-button">文档</button>
+                </div>
+
+                <div id="text_input_section" class="input-content active">
+                    <div class="input-header">
+                        <button id="copy_source_text_button" class="small-icon-button" title="复制原文">
+                            <i class="fas fa-copy"></i> 
+                        </button>
+                        <button id="clean_pdf_line_breaks_button" class="small-icon-button" title="清除PDF换行符">
+                            <i class="fas fa-align-left"></i> 
+                        </button>
+                        <button id="clear_source_text_button" class="small-icon-button clear-button" title="清除原文">
+                            <i class="fas fa-times-circle"></i> 
+                        </button>
+                    </div>
+                    <textarea id="text_input" placeholder="在此输入文字..."></textarea>
+                </div>
+
+                <div id="file_input_section" class="input-content">
+                    <div class="file-upload-area">
+                        <label for="file_input" class="upload-button">
+                            <i class="fas fa-file-upload"></i> 选择文档 (.txt, .docx, .pptx, .xlsx)
+                            <input type="file" id="file_input" accept=".txt,.docx,.pptx,.xlsx,.xls" hidden>
+                        </label>
+                        <span id="file_name_display" class="file-name-display">未选择任何文档</span>
+                    </div>
+
+                    <!-- 模板文件上传区域 -->
+                    <div class="template-upload-area" id="template_upload_area" style="display: none;">
+                        <div class="template-upload-section">
+                            <label for="template_file_input" class="small-button template-upload-button">
+                                <i class="fas fa-file-word"></i> 选择格式模板 (.docx) 
+                                <span class="optional-text">[可选]</span>
+                                <input type="file" id="template_file_input" accept=".docx" hidden>
+                            </label>
+                            <span id="template_file_name_display" class="file-name-display">未选择模板文件</span>
+                            <button type="button" id="clear_template_button" class="small-icon-button clear-button" title="清除模板文件" style="display: none;">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="encoding_group" style="display: none;">
+                        <label for="encoding">文件编码 (.txt):</label>
+                        <input type="text" id="encoding" value="utf-8" placeholder="例如: utf-8, gbk">
+                        <p class="hint">仅对 .txt 文档有效。</p>
+                    </div>
+
+                    <!-- 文档处理方法选择 -->
+                    <div class="form-group" id="docx_processing_method_group" style="display: none;">
+                        <label for="docx_processing_method">DOCX 处理方法:</label>
+                        <select id="docx_processing_method">
+                            <option value="docx_translator">1.无格式 (仅段落格式，不翻译表格)</option>
+                            <option value="docx_full_translator">2.原文档格式 (格式位置固定，不翻译表格)</option>
+                            <option value="docx_pythondoc1_translator">3.原文档格式(格式位置固定，翻译表格)</option>
+                            <option value="docx_pythondoc2_translator">4.原文档格式 (有段落格式、字号，无字体样式，翻译表格)</option>
+                            <option value="docx_markdown_translator" selected>5.Markdown (字体格式保留较好，表格不翻译，支持Prompt)</option>
+                        </select>
+                        <p class="hint">选择处理 Word 文档的具体方式。不同的方式在格式保留和表格处理上有所差异。</p>
+                    </div>
+
+                    <div class="form-group" id="pptx_processing_method_group" style="display: none;">
+                        <label for="pptx_processing_method">PPTX 处理方法:</label>
+                        <select id="pptx_processing_method">
+                            <option value="pptx_full_translator" selected>高级格式化翻译 (保持视觉格式和布局)</option>
+                        </select>
+                        <p class="hint">PPT翻译支持文本框、占位符、表格、图表等元素，完整保持幻灯片格式。</p>
+                    </div>
+
+                    <div class="form-group" id="excel_processing_method_group" style="display: none;">
+                        <label for="excel_processing_method">Excel 处理方法:</label>
+                        <select id="excel_processing_method">
+                            <option value="excel_full_translator" selected>智能检测翻译 (自动识别可翻译内容)</option>
+                        </select>
+                        <p class="hint">Excel翻译支持智能内容检测，自动区分标签和数据，保护公式和数值。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="translate-button-container">
+                <button id="translate_button" class="central-translate-button" title="开始翻译">
+                    <i class="fas fa-language"></i>
+                </button>
+            </div>
+            
+            <div class="output-panel">
+                <div class="output-header">
+                    <button id="copy_translated_text_button" class="small-icon-button" title="复制翻译结果">
+                        <i class="fas fa-copy"></i> 复制
+                    </button>
+                </div>
+                <textarea id="translated_text_display" placeholder="翻译结果将显示在此..." readonly></textarea>
+                <div id="download_area" class="download-area" style="display: none;">
+                    <a id="download_link" href="#" style="display: none;">下载翻译文件</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-area">
+            <div id="status_message" class="status-message"></div>
+        </div>
+    </div>
+
+    <!-- 咖啡打赏弹窗 -->
+    <div id="coffee-modal" class="coffee-modal">
+        <div class="coffee-modal-content">
+            <span class="coffee-close">&times;</span>
+            <h3>请作者喝咖啡</h3>
+            <div class="qr-container">
+                <div class="qr-item">
+                    <img src="{{ url_for('static', filename='wechat_qr.png') }}" alt="微信支付" class="qr-code">
+                    <p>微信支付</p>
+                </div>
+                <div class="qr-item">
+                    <img src="{{ url_for('static', filename='alipay_qr.png') }}" alt="支付宝" class="qr-code">
+                    <p>支付宝</p>
+                </div>
+            </div>
+            <p class="thank-text">感谢您的支持！</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const platformSelect = document.getElementById('api_platform');
+            const standardApiFields = document.getElementById('standard_api_fields');
+            const volcCredentials = document.getElementById('volcengine_sdk_credentials');
+            
+            // 文件类型检测和UI控制
+            const fileInput = document.getElementById('file_input');
+            const docxMethodGroup = document.getElementById('docx_processing_method_group');
+            const pptxMethodGroup = document.getElementById('pptx_processing_method_group');
+            const excelMethodGroup = document.getElementById('excel_processing_method_group');
+            const encodingGroup = document.getElementById('encoding_group');
+            const templateUploadArea = document.getElementById('template_upload_area');
+            const pptConfigGroup = document.getElementById('ppt_config_group');
+            const excelConfigGroup = document.getElementById('excel_config_group');
+            const pptDomains = document.getElementById('ppt_domains');
+            const excelDomains = document.getElementById('excel_domains');
+
+            function toggleApiFields() {
+                if (platformSelect.value === 'volcengine_sdk') {
+                    standardApiFields.style.display = 'none';
+                    volcCredentials.style.display = 'block';
+                } else {
+                    standardApiFields.style.display = 'block';
+                    volcCredentials.style.display = 'none';
+                }
+            }
+
+            function toggleFileTypeSpecificUI() {
+                const selectedFile = fileInput.files[0];
+                if (!selectedFile) {
+                    // 隐藏所有文件类型特定的UI
+                    docxMethodGroup.style.display = 'none';
+                    pptxMethodGroup.style.display = 'none';
+                    excelMethodGroup.style.display = 'none';
+                    encodingGroup.style.display = 'none';
+                    templateUploadArea.style.display = 'none';
+                    pptConfigGroup.style.display = 'none';
+                    excelConfigGroup.style.display = 'none';
+                    pptDomains.style.display = 'none';
+                    excelDomains.style.display = 'none';
+                    return;
+                }
+
+                const fileName = selectedFile.name.toLowerCase();
+                
+                // 隐藏所有，然后显示相应的
+                docxMethodGroup.style.display = 'none';
+                pptxMethodGroup.style.display = 'none';
+                excelMethodGroup.style.display = 'none';
+                encodingGroup.style.display = 'none';
+                templateUploadArea.style.display = 'none';
+                pptConfigGroup.style.display = 'none';
+                excelConfigGroup.style.display = 'none';
+                pptDomains.style.display = 'none';
+                excelDomains.style.display = 'none';
+
+                if (fileName.endsWith('.txt')) {
+                    encodingGroup.style.display = 'block';
+                } else if (fileName.endsWith('.docx')) {
+                    docxMethodGroup.style.display = 'block';
+                    templateUploadArea.style.display = 'block';
+                } else if (fileName.endsWith('.pptx')) {
+                    pptxMethodGroup.style.display = 'block';
+                    pptConfigGroup.style.display = 'block';
+                    pptDomains.style.display = 'block';
+                } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+                    excelMethodGroup.style.display = 'block';
+                    excelConfigGroup.style.display = 'block';
+                    excelDomains.style.display = 'block';
+                }
+            }
+
+            // 页面加载时立即执行
+            toggleApiFields();
+            toggleFileTypeSpecificUI();
+
+            // 事件监听器
+            platformSelect.addEventListener('change', toggleApiFields);
+            fileInput.addEventListener('change', function() {
+                toggleFileTypeSpecificUI();
+                // 更新文件名显示
+                const fileNameDisplay = document.getElementById('file_name_display');
+                if (this.files[0]) {
+                    fileNameDisplay.textContent = this.files[0].name;
+                } else {
+                    fileNameDisplay.textContent = '未选择任何文档';
+                }
+            });
+
+            // 清除模板文件按钮
+            const clearTemplateButton = document.getElementById('clear_template_button');
+            const templateFileInput = document.getElementById('template_file_input');
+            const templateFileNameDisplay = document.getElementById('template_file_name_display');
+
+            if (clearTemplateButton && templateFileInput && templateFileNameDisplay) {
+                clearTemplateButton.addEventListener('click', function() {
+                    templateFileInput.value = '';
+                    templateFileNameDisplay.textContent = '未选择模板文件';
+                    clearTemplateButton.style.display = 'none';
+                });
+
+                templateFileInput.addEventListener('change', function() {
+                    if (this.files[0]) {
+                        templateFileNameDisplay.textContent = this.files[0].name;
+                        clearTemplateButton.style.display = 'inline-block';
+                    } else {
+                        templateFileNameDisplay.textContent = '未选择模板文件';
+                        clearTemplateButton.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>
