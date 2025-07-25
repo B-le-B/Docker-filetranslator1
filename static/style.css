@@ -1495,8 +1495,8 @@ optgroup option {
 }
 
 .qr-code {
-    width: 150px;
-    height: 150px;
+    width: 200px;
+    height: 200px;
     border-radius: 10px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
@@ -1587,8 +1587,8 @@ optgroup option {
     }
     
     .qr-code {
-        width: 120px;
-        height: 120px;
+        width: 200px;
+        height: 200px;
     }
     
     .coffee-modal-content h3 {
@@ -1602,8 +1602,8 @@ optgroup option {
 
 @media (max-width: 480px) {
     .qr-code {
-        width: 100px;
-        height: 100px;
+        width: 200px;
+        height: 200px;
     }
     
     .coffee-modal-content {
