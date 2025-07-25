@@ -1537,12 +1537,12 @@ optgroup option {
     }
     
     .coffee-button {
-        font-size: 12px;
+        font-size: 14px;
         padding: 3px 6px;
     }
     
     .coffee-button i {
-        font-size: 11px;
+        font-size: 13px;
     }
     
     /* 语言选择栏移动端样式 */
