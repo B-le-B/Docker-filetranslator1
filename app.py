@@ -63,6 +63,9 @@ from flask import (
     jsonify,
     send_from_directory,
     Response,
+    session,
+    redirect,
+    url_for,
 )
 from werkzeug.utils import secure_filename
 import uuid
@@ -200,6 +203,10 @@ except ImportError:
 
 app = Flask(__name__)
 
+# 配置密钥和登录密码
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
+LOGIN_PASSWORD = os.environ.get('LOGIN_PASSWORD', 'admin123')  # 默认密码，建议通过环境变量设置
+
 # 获取系统临时目录作为基础路径
 TEMP_BASE_DIR = tempfile.gettempdir()
 
@@ -264,9 +271,39 @@ def apply_prompt_config_to_translator(translator, prompt_config):
     return False
 
 
+# 登录验证装饰器
+def login_required(f):
+    """登录验证装饰器"""
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        password = request.form.get("password")
+        if password == LOGIN_PASSWORD:
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+        else:
+            return render_template("login.html", error="密码错误，请重试")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
 
 
 # 新增：PPT和Excel文件翻译路由
@@ -274,6 +311,7 @@ def index():
 
 
 @app.route("/translate_file", methods=["POST"])
+@login_required
 def translate_file():
     try:
         logger.info("=== Starting translate_file request ===")
@@ -939,6 +977,7 @@ def translate_file():
 
 
 @app.route("/translate_api", methods=["POST"])
+@login_required
 def translate_api():
     data = request.form
     api_platform = data.get("api_platform", "custom")
@@ -1828,6 +1867,7 @@ if _prompt_modules_available:
 
     # 保存用户配置
     @app.route("/api/save-config", methods=["POST"])
+    @login_required
     def save_user_config():
         """保存用户的翻译配置"""
         data = request.json
