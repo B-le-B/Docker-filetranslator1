@@ -61,6 +61,7 @@
                 padding: 10px;
             }
         }
+        
     </style>
 </head>
 <body>
@@ -114,17 +115,17 @@
                             <div class="form-group">
                                 <label for="base_url">API Base URL:</label>
                                 <input type="text" id="base_url" placeholder="例如: https://api.siliconflow.cn/v1">
-                                <p class="hint">留空将使用 .env 默认值或平台预设。</p>
+                                <p class="hint">留空将使用预设值。</p>
                             </div>
                             <div class="form-group">
                                 <label for="api_key">API 密钥 (API Key):</label>
                                 <input type="password" id="api_key" placeholder="例如: sk-xxxx">
-                                <p class="hint">留空将使用 .env 环境变量 (例如 SILICONFLOW_API_KEY)。</p>
+                                <p class="hint">请输入各平台的API KEY。</p>
                             </div>
                             <div class="form-group">
                                 <label for="model">模型 (Model):</label>
                                 <input type="text" id="model" placeholder="例如: Qwen/Qwen2-7B-Instruct">
-                                <p class="hint">留空将使用 .env 默认值或平台预设。</p>
+                                <p class="hint">留空将使用预设值。</p>
                             </div>
                         </div>
 
@@ -133,12 +134,12 @@
                             <div class="form-group">
                                 <label for="volc_ak">火山引擎 Access Key:</label>
                                 <input type="text" id="volc_ak" name="volc_ak" placeholder="输入您的 Access Key ID">
-                                <p class="hint">留空将使用服务器端的 .env 环境变量 (VOLCENGINE_AK)。</p>
+                                <p class="hint">留空将使用服务器端的VOLCENGINE_AK。</p>
                             </div>
                             <div class="form-group">
                                 <label for="volc_sk">火山引擎 Secret Key:</label>
                                 <input type="password" id="volc_sk" name="volc_sk" placeholder="输入您的 Secret Access Key">
-                                <p class="hint">留空将使用服务器端的 .env 环境变量 (VOLCENGINE_SK)。</p>
+                                <p class="hint">留空将使用服务器端的VOLCENGINE_SK。</p>
                             </div>
                         </div>
                     </div>
@@ -442,7 +443,7 @@
                             <option value="docx_pythondoc2_translator">4.原文档格式 (有段落格式、字号，无字体样式，翻译表格)</option>
                             <option value="docx_markdown_translator" selected>5.Markdown (字体格式保留较好，表格不翻译，支持Prompt)</option>
                         </select>
-                        <p class="hint">选择处理 Word 文档的具体方式。不同的方式在格式保留和表格处理上有所差异。1速度块，不追求速度推荐4和5</p>
+                        <p class="hint">选择处理 Word 文档的具体方式。不同的方式在格式保留和表格处理上有所差异。1速度快，不追求速度推荐4和5</p>
                     </div>
 
                     <div class="form-group" id="pptx_processing_method_group" style="display: none;">
