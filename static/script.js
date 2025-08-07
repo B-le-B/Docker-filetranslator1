@@ -602,7 +602,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (baseUrlInput) baseUrlInput.value = config.baseUrl;
         if (modelInput) modelInput.value = config.model;
         if (apiKeyHint) {
-            apiKeyHint.textContent = `留空将使用 .env 环境变量 (例如 ${config.apiKeyEnvHint})。`;
+            apiKeyHint.textContent = `请输入各平台的API KEY (例如 ${config.apiKeyEnvHint})。`;
         }
         if (apiPlatformSelect) {
             appendLog(`API 平台切换为: ${apiPlatformSelect.options[apiPlatformSelect.selectedIndex].text}. Base URL 和 Model 已更新。`);
