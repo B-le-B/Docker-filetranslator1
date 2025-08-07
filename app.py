@@ -55,6 +55,8 @@
 import os
 import logging
 import tempfile
+from datetime import datetime, timedelta
+from collections import defaultdict
 
 from flask import (
     Flask,
@@ -207,6 +209,18 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
 LOGIN_PASSWORD = os.environ.get('LOGIN_PASSWORD', 'admin123')  # 默认密码，建议通过环境变量设置
 
+# 调试信息：显示当前使用的密码（仅显示前3位）
+print(f"🔑 当前登录密码: {LOGIN_PASSWORD[:3]}*** (长度: {len(LOGIN_PASSWORD)})")
+print(f"🔐 SECRET_KEY已设置: {'是' if os.environ.get('SECRET_KEY') else '否'}")
+
+# 用户活动跟踪
+user_sessions = {}  # 存储用户会话信息
+user_activity_log = []  # 存储用户活动日志
+translation_stats = defaultdict(int)  # 翻译统计
+
+# 管理员密码（可通过环境变量设置）
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin888')
+
 # 获取系统临时目录作为基础路径
 TEMP_BASE_DIR = tempfile.gettempdir()
 
@@ -271,12 +285,63 @@ def apply_prompt_config_to_translator(translator, prompt_config):
     return False
 
 
+# 用户活动跟踪函数
+def log_user_activity(action, details=None):
+    """记录用户活动"""
+    user_ip = request.remote_addr
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    session_id = session.get('session_id', 'anonymous')
+    
+    activity = {
+        'timestamp': datetime.now(),
+        'session_id': session_id,
+        'ip': user_ip,
+        'user_agent': user_agent[:100],  # 限制长度
+        'action': action,
+        'details': details
+    }
+    
+    user_activity_log.append(activity)
+    
+    # 保持日志大小在合理范围内（最多1000条）
+    if len(user_activity_log) > 1000:
+        user_activity_log.pop(0)
+
+def update_user_session(action='activity'):
+    """更新用户会话信息"""
+    session_id = session.get('session_id')
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        session['session_id'] = session_id
+    
+    user_ip = request.remote_addr
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    
+    user_sessions[session_id] = {
+        'ip': user_ip,
+        'user_agent': user_agent[:100],
+        'last_activity': datetime.now(),
+        'login_time': user_sessions.get(session_id, {}).get('login_time', datetime.now()),
+        'status': 'online'
+    }
+
 # 登录验证装饰器
 def login_required(f):
     """登录验证装饰器"""
     def decorated_function(*args, **kwargs):
         if not session.get('logged_in'):
             return redirect(url_for('login'))
+        update_user_session()  # 更新用户活动
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+# 管理员验证装饰器
+def admin_required(f):
+    """管理员验证装饰器"""
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect(url_for('admin_login'))
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
@@ -292,18 +357,114 @@ def index():
 def login():
     if request.method == "POST":
         password = request.form.get("password")
-        if password == LOGIN_PASSWORD:
+        
+        # 检查是否为管理员密码
+        if password == ADMIN_PASSWORD:
+            session['admin_logged_in'] = True
+            session['logged_in'] = True  # 管理员也有普通用户权限
+            log_user_activity('管理员登录', {'success': True, 'auto_detect': True})
+            return redirect(url_for('admin_dashboard'))
+        
+        # 检查是否为普通用户密码
+        elif password == LOGIN_PASSWORD:
             session['logged_in'] = True
+            update_user_session('login')
+            log_user_activity('用户登录', {'success': True})
             return redirect(url_for('index'))
+        
         else:
+            log_user_activity('登录失败', {'reason': '密码错误'})
             return render_template("login.html", error="密码错误，请重试")
+    
     return render_template("login.html")
 
 
 @app.route("/logout")
 def logout():
+    session_id = session.get('session_id')
+    if session_id and session_id in user_sessions:
+        user_sessions[session_id]['status'] = 'offline'
+        log_user_activity('用户登出')
     session.pop('logged_in', None)
+    session.pop('session_id', None)
     return redirect(url_for('login'))
+
+
+# 管理员登录路由（重定向到统一登录页面）
+@app.route("/admin/login")
+def admin_login():
+    return redirect(url_for('login'))
+
+
+# 管理员登出
+@app.route("/admin/logout")
+def admin_logout():
+    log_user_activity('管理员登出')
+    session.pop('admin_logged_in', None)
+    return redirect(url_for('admin_login'))
+
+
+# 管理员后台首页
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    # 清理过期会话（超过30分钟无活动）
+    current_time = datetime.now()
+    expired_sessions = []
+    for session_id, session_data in user_sessions.items():
+        if current_time - session_data['last_activity'] > timedelta(minutes=30):
+            session_data['status'] = 'offline'
+            expired_sessions.append(session_id)
+    
+    # 统计数据
+    online_users = sum(1 for s in user_sessions.values() if s['status'] == 'online')
+    total_sessions = len(user_sessions)
+    recent_activities = sorted(user_activity_log, key=lambda x: x['timestamp'], reverse=True)[:50]
+    
+    # 翻译统计
+    today = datetime.now().date()
+    today_translations = sum(1 for activity in user_activity_log 
+                           if activity['timestamp'].date() == today and '翻译' in activity['action'])
+    
+    stats = {
+        'online_users': online_users,
+        'total_sessions': total_sessions,
+        'today_translations': today_translations,
+        'total_activities': len(user_activity_log)
+    }
+    
+    return render_template("admin_dashboard.html", 
+                         stats=stats, 
+                         user_sessions=user_sessions,
+                         recent_activities=recent_activities)
+
+
+# API：获取实时统计数据
+@app.route("/admin/api/stats")
+@admin_required
+def admin_api_stats():
+    current_time = datetime.now()
+    
+    # 更新会话状态
+    for session_id, session_data in user_sessions.items():
+        if current_time - session_data['last_activity'] > timedelta(minutes=30):
+            session_data['status'] = 'offline'
+    
+    online_users = sum(1 for s in user_sessions.values() if s['status'] == 'online')
+    
+    # 今日活动统计
+    today = current_time.date()
+    today_activities = [a for a in user_activity_log if a['timestamp'].date() == today]
+    today_logins = sum(1 for a in today_activities if a['action'] == '用户登录')
+    today_translations = sum(1 for a in today_activities if '翻译' in a['action'])
+    
+    return jsonify({
+        'online_users': online_users,
+        'total_sessions': len(user_sessions),
+        'today_logins': today_logins,
+        'today_translations': today_translations,
+        'total_activities': len(user_activity_log)
+    })
 
 
 # 新增：PPT和Excel文件翻译路由
@@ -313,6 +474,12 @@ def logout():
 @app.route("/translate_file", methods=["POST"])
 @login_required
 def translate_file():
+    # 记录翻译活动
+    log_user_activity('文件翻译开始', {
+        'file_type': request.files.get('file').filename.split('.')[-1] if request.files.get('file') else 'unknown',
+        'target_lang': request.form.get('target_lang'),
+        'processing_method': request.form.get('processing_method')
+    })
     try:
         logger.info("=== Starting translate_file request ===")
 
@@ -979,6 +1146,14 @@ def translate_file():
 @app.route("/translate_api", methods=["POST"])
 @login_required
 def translate_api():
+    # 记录API翻译活动
+    log_user_activity('API翻译请求', {
+        'platform': request.form.get('api_platform', 'unknown'),
+        'target_lang': request.form.get('target_lang'),
+        'has_text': bool(request.form.get('text_input')),
+        'has_file': bool(request.files.get('file'))
+    })
+    
     data = request.form
     api_platform = data.get("api_platform", "custom")
 
