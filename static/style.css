@@ -393,18 +393,72 @@
 }
 
 @media (max-width: 768px) {
+    /* 修复翻译模式选项卡在手机端超出边框的问题 */
+    .prompt-config-details .radio-group,
     .radio-group {
-        flex-direction: column;
-        gap: 10px;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 0 !important;
+        margin: 8px 0 !important;
+        overflow: hidden !important;
     }
     
+    .prompt-config-details .radio-label,
     .radio-label {
-        width: 100%;
-        justify-content: center;
+        display: flex !important;
+        width: 100% !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
+        flex-wrap: nowrap !important;
+    }
+    
+    /* 确保容器不会超出 */
+    .prompt-config-content,
+    .form-group {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+    
+    /* 所有配置容器设置上下距离 - 仅移动端 */
+    .master-config-details,
+    .api-config-details,
+    .prompt-config-details,
+    .advanced-config-details,
+    .config-management-details {
+        margin: 6px 0 !important;
+    }
+    
+    /* 收起后的配置容器高度减小 - 仅移动端 */
+    .master-config-details:not([open]),
+    .api-config-details:not([open]),
+    .prompt-config-details:not([open]),
+    .advanced-config-details:not([open]),
+    .config-management-details:not([open]) {
+        padding: 8px 12px !important;
+    }
+    
+    .master-config-details:not([open]) summary,
+    .api-config-details:not([open]) summary,
+    .prompt-config-details:not([open]) summary,
+    .advanced-config-details:not([open]) summary,
+    .config-management-details:not([open]) summary {
+        padding-bottom: 2px !important;
+        padding-left: 20px !important;
     }
     
     .glossary-item {
         flex-wrap: wrap;
+        margin-bottom: 2px !important;
     }
     
     .glossary-item input {
@@ -414,7 +468,7 @@
     .glossary-item span {
         width: 100%;
         text-align: center;
-        margin: 5px 0;
+        margin: 2px 0;
     }
     
     .remove-glossary-btn {
@@ -434,19 +488,19 @@
     .config-controls {
         flex-direction: column;
         align-items: stretch;
-        gap: 8px;
+        gap: 2px;
     }
 
     .config-controls select {
         width: 100%;
-        margin-bottom: 5px;
+        margin-bottom: 2px;
     }
     
     .config-controls .small-button,
     .config-controls label.small-button {
         width: auto;
         max-width: 100%;
-        margin-bottom: 5px;
+        margin-bottom: 2px;
         font-size: 0.8em;
         padding: 6px 12px;
         text-align: center;
@@ -972,69 +1026,6 @@ button.central-translate-button:disabled {
     }
 }
 
-@media (max-width: 768px) {
-    .radio-group {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .radio-label {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .glossary-item {
-        flex-wrap: wrap;
-    }
-    
-    .glossary-item input {
-        min-width: calc(50% - 20px);
-    }
-    
-    .glossary-item span {
-        width: 100%;
-        text-align: center;
-        margin: 5px 0;
-    }
-    
-    .remove-glossary-btn {
-        margin-left: auto;
-    }
-    
-    .batch-settings {
-        grid-template-columns: 1fr;
-    }
-    
-    #custom_system_prompt,
-    #custom_user_prompt,
-    #additional_context {
-        font-size: 0.8em;
-    }
-
-    .config-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .config-controls select {
-        width: 100%;
-        margin-bottom: 5px;
-    }
-    
-    .config-controls .small-button,
-    .config-controls label.small-button {
-        width: auto;
-        max-width: 100%;
-        margin-bottom: 5px;
-        font-size: 0.8em;
-        padding: 6px 12px;
-        text-align: center;
-        box-sizing: border-box;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-}
 
 /* 模板文件上传样式 */
 .template-upload-area {
