@@ -566,6 +566,16 @@ def translate_file():
                     "enable_thinking": False,
                 },
             },
+            "groq": {
+                "api_key_env": "GROQ_API_KEY",
+                "base_url_env": "GROQ_BASE_URL",
+                "model_env": "GROQ_MODEL",
+                "default_base_url": "https://api.groq.com/openai/v1",
+                "default_model": "openai/gpt-oss-120b",
+                "extra_body": {
+                    "enable_thinking": False,
+                },
+            },            
             "openrouter": {
                 "api_key_env": "OPENROUTER_API_KEY",
                 "base_url_env": "OPENROUTER_BASE_URL",
@@ -1239,6 +1249,16 @@ def translate_api():
                 "enable_thinking": False,  # 只对QWEN3生效，其他模型忽略
             },
         },
+        "groq": {
+            "api_key_env": "GROQ_API_KEY",
+            "base_url_env": "GROQ_BASE_URL",
+            "model_env": "GROQ_MODEL",
+            "default_base_url": "https://api.groq.com/openai/v1",
+            "default_model": "openai/gpt-oss-120b",
+            # "extra_body": {
+            #     "enable_thinking": False,  # 只对QWEN3生效，其他模型忽略
+            # },
+        },        
         "openrouter": {
             "api_key_env": "OPENROUTER_API_KEY",
             "base_url_env": "OPENROUTER_BASE_URL",
