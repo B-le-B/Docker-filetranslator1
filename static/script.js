@@ -186,6 +186,11 @@ document.addEventListener('DOMContentLoaded', function () {
             model: "Qwen/Qwen2.5-72B-Instruct",
             apiKeyEnvHint: "MODELSCOPE_API_KEY"
         },
+        "groq": {
+            baseUrl: "https://api.groq.com/openai/v1",
+            model: "openai/gpt-oss-120b",
+            apiKeyEnvHint: "GROQ_API_KEY"
+        },        
         "openrouter": {
             baseUrl: "https://openrouter.ai/api/v1",
             model: "google/gemini-2.0-flash-exp:free",
